@@ -1,0 +1,29 @@
+services:
+
+  api:
+    build: ./api
+    ports:
+      - "8000:8000"
+
+  payment-core:
+    build: ./payment-core
+
+  fraud:
+    build: ./fraud
+    ports:
+      - "8001:8001"
+
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: payments
+      POSTGRES_USER: payments
+      POSTGRES_PASSWORD: payments_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+
+volumes:
+  postgres_data:
