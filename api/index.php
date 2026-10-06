@@ -8,6 +8,9 @@ header('X-Powered-By: Payment-Platform');
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/src/security.php';
 require_once __DIR__ . '/src/validation.php';
+require_once __DIR__ . '/src/auth.php';
+require_once __DIR__ . '/src/projects.php';
+require_once __DIR__ . '/src/sessions.php';
 require_once __DIR__ . '/src/api_keys.php';
 
 function jsonResponse(
@@ -49,6 +52,21 @@ function requestBody(): array
     }
 
     return $data;
+}
+
+function requireClient(PDO $db): array
+{
+    $client = clientFromSession($db);
+
+    if (!$client) {
+        jsonResponse([
+            'error' => 'unauthorized',
+            'message' => 'A valid account session is required.',
+            'request_id' => requestId()
+        ], 401);
+    }
+
+    return $client;
 }
 
 function bearerToken(): ?string
@@ -144,10 +162,7 @@ try {
 
     $db = database();
 
-    if (
-        $path === '/health' &&
-        $method === 'GET'
-    ) {
+    if ($path === '/health' && $method === 'GET') {
         jsonResponse([
             'status' => 'ok',
             'service' => 'payment-api',
@@ -157,10 +172,7 @@ try {
         ]);
     }
 
-    if (
-        $path === '/v1' &&
-        $method === 'GET'
-    ) {
+    if ($path === '/v1' && $method === 'GET') {
         jsonResponse([
             'name' => 'Payment Platform API',
             'version' => '1.0.0',
@@ -168,19 +180,156 @@ try {
         ]);
     }
 
+    if ($path === '/v1/auth/register' && $method === 'POST') {
+
+        $input = requestBody();
+
+        $client = registerClient(
+            $db,
+            (string)($input['name'] ?? ''),
+            (string)($input['email'] ?? ''),
+            (string)($input['password'] ?? '')
+        );
+
+        $token = createSessionToken($client['id']);
+
+        jsonResponse([
+            'client' => $client,
+            'token' => $token,
+            'token_type' => 'Bearer',
+            'request_id' => requestId()
+        ], 201);
+    }
+
+    if ($path === '/v1/auth/login' && $method === 'POST') {
+
+        $input = requestBody();
+
+        $client = authenticateClient(
+            $db,
+            (string)($input['email'] ?? ''),
+            (string)($input['password'] ?? '')
+        );
+
+        $token = createSessionToken($client['id']);
+
+        jsonResponse([
+            'client' => $client,
+            'token' => $token,
+            'token_type' => 'Bearer',
+            'request_id' => requestId()
+        ]);
+    }
+
+    if ($path === '/v1/projects' && $method === 'POST') {
+
+        $client = requireClient($db);
+        $input = requestBody();
+
+        $project = createProject(
+            $db,
+            $client['id'],
+            (string)($input['name'] ?? ''),
+            (string)($input['description'] ?? '')
+        );
+
+        jsonResponse([
+            'project' => $project,
+            'request_id' => requestId()
+        ], 201);
+    }
+
+    if ($path === '/v1/projects' && $method === 'GET') {
+
+        $client = requireClient($db);
+
+        jsonResponse([
+            'projects' => listProjects(
+                $db,
+                $client['id']
+            ),
+            'request_id' => requestId()
+        ]);
+    }
+
+    if (
+        preg_match(
+            '#^/v1/projects/([^/]+)/keys$#',
+            $path,
+            $matches
+        ) &&
+        $method === 'POST'
+    ) {
+
+        $client = requireClient($db);
+        $projectId = $matches[1];
+
+        if (
+            !projectBelongsToClient(
+                $db,
+                $projectId,
+                $client['id']
+            )
+        ) {
+            jsonResponse([
+                'error' => 'project_not_found',
+                'request_id' => requestId()
+            ], 404);
+        }
+
+        $input = requestBody();
+
+        $environment = strtolower(
+            trim((string)(
+                $input['environment'] ?? 'test'
+            ))
+        );
+
+        if (
+            !in_array(
+                $environment,
+                ['test', 'live'],
+                true
+            )
+        ) {
+            jsonResponse([
+                'error' => 'invalid_environment',
+                'message' =>
+                    'environment must be test or live.',
+                'request_id' => requestId()
+            ], 422);
+        }
+
+        $key = createApiKeyRecord(
+            $db,
+            $projectId,
+            $environment
+        );
+
+        jsonResponse([
+            'api_key' => $key,
+            'warning' =>
+                'Store this secret securely. It will not be shown again.',
+            'request_id' => requestId()
+        ], 201);
+    }
+
     if (
         $path === '/v1/payments' &&
         $method === 'POST'
     ) {
+
         $auth = authenticateApiKey($db);
         $input = requestBody();
 
         $amount = $input['amount'] ?? null;
+
         $currency = strtoupper(
             trim((string)(
                 $input['currency'] ?? 'KES'
             ))
         );
+
         $reference = trim(
             (string)($input['reference'] ?? '')
         );
@@ -221,47 +370,63 @@ try {
             ], 422);
         }
 
-        $stmt = $db->prepare(
-            'INSERT INTO payments
-            (
-                project_id,
-                reference,
-                amount,
-                currency,
-                status
-            )
-            VALUES
-            (
-                :project_id,
-                :reference,
-                :amount,
-                :currency,
-                :status
-            )
-            RETURNING id, reference, amount, currency, status,
-                      created_at'
-        );
+        try {
 
-        $stmt->execute([
-            ':project_id' => $auth['project_id'],
-            ':reference' => $reference,
-            ':amount' => (int)$amount,
-            ':currency' => $currency,
-            ':status' => 'pending'
-        ]);
+            $stmt = $db->prepare(
+                'INSERT INTO payments
+                (
+                    project_id,
+                    reference,
+                    amount,
+                    currency,
+                    status
+                )
+                VALUES
+                (
+                    :project_id,
+                    :reference,
+                    :amount,
+                    :currency,
+                    :status
+                )
+                RETURNING id, reference, amount,
+                          currency, status, created_at'
+            );
 
-        $payment = $stmt->fetch();
+            $stmt->execute([
+                ':project_id' => $auth['project_id'],
+                ':reference' => $reference,
+                ':amount' => (int)$amount,
+                ':currency' => $currency,
+                ':status' => 'pending'
+            ]);
 
-        jsonResponse([
-            'id' => 'pay_' . $payment['id'],
-            'reference' => $payment['reference'],
-            'amount' => (int)$payment['amount'],
-            'currency' => $payment['currency'],
-            'status' => $payment['status'],
-            'environment' => $auth['environment'],
-            'created_at' => $payment['created_at'],
-            'request_id' => requestId()
-        ], 201);
+            $payment = $stmt->fetch();
+
+            jsonResponse([
+                'id' => 'pay_' . $payment['id'],
+                'reference' => $payment['reference'],
+                'amount' => (int)$payment['amount'],
+                'currency' => $payment['currency'],
+                'status' => $payment['status'],
+                'environment' => $auth['environment'],
+                'created_at' => $payment['created_at'],
+                'request_id' => requestId()
+            ], 201);
+
+        } catch (PDOException $e) {
+
+            if ($e->getCode() === '23505') {
+                jsonResponse([
+                    'error' => 'duplicate_reference',
+                    'message' =>
+                        'A payment with this reference already exists.',
+                    'request_id' => requestId()
+                ], 409);
+            }
+
+            throw $e;
+        }
     }
 
     jsonResponse([
