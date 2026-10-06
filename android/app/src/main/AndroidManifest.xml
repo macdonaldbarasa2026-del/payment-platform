@@ -5,6 +5,8 @@
     <application
         android:allowBackup="false"
         android:label="Payment Platform"
+        android:icon="@drawable/ic_payment_platform"
+        android:roundIcon="@drawable/ic_payment_platform"
         android:theme="@style/AppTheme">
 
         <activity

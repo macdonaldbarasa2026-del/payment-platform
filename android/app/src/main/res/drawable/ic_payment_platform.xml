@@ -1,0 +1,27 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Rounded background -->
+    <path
+        android:fillColor="#111827"
+        android:pathData="M12,0 L96,0 Q108,0 108,12 L108,96 Q108,108 96,108 L12,108 Q0,108 0,96 L0,12 Q0,0 12,0 Z" />
+
+    <!-- Payment card -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M22,30 Q22,22 30,22 L78,22 Q86,22 86,30 L86,78 Q86,86 78,86 L30,86 Q22,86 22,78 Z" />
+
+    <!-- P / payment symbol -->
+    <path
+        android:fillColor="#111827"
+        android:pathData="M39,35 L59,35 Q70,35 70,46 Q70,57 59,57 L48,57 L48,73 L39,73 Z M48,43 L48,49 L58,49 Q61,49 61,46 Q61,43 58,43 Z" />
+
+    <!-- Payment arrow -->
+    <path
+        android:fillColor="#2563EB"
+        android:pathData="M62,64 L76,64 L71,59 L75,55 L87,68 L75,81 L71,77 L76,72 L62,72 Z" />
+
+</vector>
