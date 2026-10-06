@@ -23,9 +23,11 @@ Developer-first payment infrastructure.
 ## API keys
 
 Test:
+
 sk_test_...
 
 Live:
+
 sk_live_...
 
 API secrets are stored as cryptographic hashes and are not stored in plaintext.

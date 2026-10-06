@@ -49,6 +49,7 @@ if ($path === '/v1') {
 }
 
 if ($path === '/v1/payments' && $method === 'POST') {
+
     $input = body();
 
     $amount = $input['amount'] ?? null;

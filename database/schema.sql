@@ -33,8 +33,7 @@ CREATE TABLE IF NOT EXISTS payments (
     reference TEXT NOT NULL,
     amount BIGINT NOT NULL CHECK (amount > 0),
     currency TEXT NOT NULL DEFAULT 'KES',
-    status TEXT NOT NULL DEFAULT 'pending'
-        CHECK (status IN ('pending', 'processing', 'succeeded', 'failed', 'cancelled')),
+    status TEXT NOT NULL DEFAULT 'pending',
     risk_score NUMERIC(5,4) DEFAULT 0,
     risk_decision TEXT DEFAULT 'allow',
     gateway TEXT,
@@ -55,16 +54,16 @@ CREATE TABLE IF NOT EXISTS webhooks (
 );
 
 CREATE INDEX IF NOT EXISTS idx_projects_client
-    ON projects(client_id);
+ON projects(client_id);
 
 CREATE INDEX IF NOT EXISTS idx_api_keys_hash
-    ON api_keys(key_hash);
+ON api_keys(key_hash);
 
 CREATE INDEX IF NOT EXISTS idx_api_keys_project
-    ON api_keys(project_id);
+ON api_keys(project_id);
 
 CREATE INDEX IF NOT EXISTS idx_payments_project
-    ON payments(project_id);
+ON payments(project_id);
 
 CREATE INDEX IF NOT EXISTS idx_payments_created
-    ON payments(created_at DESC);
+ON payments(created_at DESC);
