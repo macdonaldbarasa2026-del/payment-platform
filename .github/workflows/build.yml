@@ -2,14 +2,11 @@ name: Build Payment Platform
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
-
   php:
     name: PHP API
     runs-on: ubuntu-latest
@@ -21,9 +18,13 @@ jobs:
         with:
           php-version: "8.3"
 
-      - name: Check PHP
-        run: php -l api/index.php
-
+      - name: Lint all PHP files
+        run: |
+          set -e
+          find api -type f -name "*.php" -print0 | while IFS= read -r -d '' file; do
+            echo "Checking $file"
+            php -l "$file"
+          done
 
   cpp:
     name: C++ Payment Core
@@ -42,7 +43,6 @@ jobs:
           cd payment-core
           ./payment-core
 
-
   python:
     name: Python Fraud Engine
     runs-on: ubuntu-latest
@@ -55,21 +55,15 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: |
-          pip install -r fraud/requirements.txt
+        run: pip install -r fraud/requirements.txt
 
       - name: Compile Python
-        run: |
-          python -m compileall fraud
-
+        run: python -m compileall fraud
 
   docker:
     name: Docker Build
     runs-on: ubuntu-latest
-    needs:
-      - php
-      - cpp
-      - python
+    needs: [php, cpp, python]
 
     steps:
       - uses: actions/checkout@v4
