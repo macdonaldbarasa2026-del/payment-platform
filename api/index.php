@@ -314,6 +314,82 @@ try {
         ], 201);
     }
 
+
+    if (
+        preg_match(
+            '#^/v1/projects/([^/]+)/keys$#',
+            $path,
+            $matches
+        ) &&
+        $method === 'GET'
+    ) {
+        $client = requireClient($db);
+        $projectId = $matches[1];
+
+        if (!projectBelongsToClient($db, $projectId, $client['id'])) {
+            jsonResponse([
+                'error' => 'project_not_found',
+                'request_id' => requestId()
+            ], 404);
+        }
+
+        $stmt = $db->prepare(
+            'SELECT id, key_prefix, environment, revoked,
+                    last_used_at, created_at
+             FROM api_keys
+             WHERE project_id = :project_id
+             ORDER BY created_at DESC'
+        );
+
+        $stmt->execute([
+            ':project_id' => $projectId
+        ]);
+
+        jsonResponse([
+            'api_keys' => $stmt->fetchAll(),
+            'request_id' => requestId()
+        ]);
+    }
+
+    if (
+        preg_match(
+            '#^/v1/projects/([^/]+)/payments$#',
+            $path,
+            $matches
+        ) &&
+        $method === 'GET'
+    ) {
+        $client = requireClient($db);
+        $projectId = $matches[1];
+
+        if (!projectBelongsToClient($db, $projectId, $client['id'])) {
+            jsonResponse([
+                'error' => 'project_not_found',
+                'request_id' => requestId()
+            ], 404);
+        }
+
+        $stmt = $db->prepare(
+            'SELECT id, reference, amount, currency,
+                    status, risk_score, risk_decision,
+                    gateway, gateway_reference,
+                    created_at, updated_at
+             FROM payments
+             WHERE project_id = :project_id
+             ORDER BY created_at DESC
+             LIMIT 100'
+        );
+
+        $stmt->execute([
+            ':project_id' => $projectId
+        ]);
+
+        jsonResponse([
+            'payments' => $stmt->fetchAll(),
+            'request_id' => requestId()
+        ]);
+    }
+
     if (
         $path === '/v1/payments' &&
         $method === 'POST'
