@@ -2,38 +2,34 @@
 
 Developer-first payment infrastructure.
 
-## Services
+## Architecture
 
-- API Gateway
+- PHP API
 - Next.js Developer Dashboard
 - C++ Payment Core
 - Python Fraud Engine
-- PostgreSQL
+- Supabase PostgreSQL
+- Android developer dashboard
 
-## Developer workflow
+## Database
 
-1. Create an account
-2. Create a project
-3. Generate API keys
-4. Integrate the API
-5. Create test payments
-6. Configure webhooks
-7. Generate live keys after verification
+The API supports a Supabase PostgreSQL connection through:
 
-## API keys
+```text
+DATABASE_URL
+```text
+10.0.2.2 is only a local Android-emulator address. It is not an Internet URL.
 
-Test:
+## Health check
 
-sk_test_...
+GET /health
 
-Live:
+## Production
 
-sk_live_...
+The API can be deployed as a Docker web service.
 
-API secrets are stored as cryptographic hashes and are not stored in plaintext.
+After deployment, Android should use the public HTTPS API URL instead of:
 
-## CI/CD
+http://10.0.2.2:8000
 
-GitHub Actions builds and tests the platform.
-
-Termux is used for source-code editing and Git operations, not compilation.
+Never put database passwords or live API secrets in GitHub.
